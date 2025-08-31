@@ -1,0 +1,54 @@
+@startuml
+skinparam handwritten true
+skinparam ClassBackgroundColor #ADD8E6
+skinparam ClassBorderColor #1E90FF
+
+class User {
+  +id: int
+  +email: string
+  +password: string
+  +created_at: timestamp
+  --
+  +login()
+  +signup()
+}
+
+class Document {
+  +id: int
+  +user_id: int
+  +type: enum
+  +content: text
+  +file_path: string
+  +created_at: timestamp
+  +updated_at: timestamp
+  +deleted_at: timestamp
+}
+
+class DocumentHistory {
+  +id: int
+  +document_id: int
+  +user_id: int
+  +original_text: text
+  +change_type: enum
+  +changed_at: timestamp
+}
+
+class STTService {
+  +transcribeAudio(audioFile)
+}
+
+class OCRService {
+  +extractText(imageFile)
+}
+
+class TTSService {
+  +generateAudio(text)
+}
+
+User "1" -- "0..*" Document : has
+Document "1" -- "0..*" DocumentHistory : has history
+
+STTService ..> Document
+OCRService ..> Document
+TTSService ..> Document
+@enduml
