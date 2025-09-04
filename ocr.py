@@ -1,26 +1,45 @@
 import sys
 import json
-from transformers import pipeline # type: ignore
 from PIL import Image # type: ignore
-import os
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel # type: ignore
+import os 
+import torch # type: ignore
 
 try:
+    # The image file path is passed as the first command-line argument
     image_file_path = sys.argv[1]
 
-    # Use the specified Ransaka Sinhala OCR model
-    ocr_pipe = pipeline("image-to-text", model="Ransaka/sinhala-ocr-model-v3")
+    # Use the Ransaka/TrOCR-Sinhala model
+    model_name = "Ransaka/TrOCR-Sinhala"
+    
+    # Check for GPU availability
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    # The pipeline handles loading the image and running the model
-    recognized_text = ocr_pipe(image_file_path)
+    # Load the processor and model
+    processor = TrOCRProcessor.from_pretrained(model_name)
+    model = VisionEncoderDecoderModel.from_pretrained(model_name).to(device)
+    
+    # Open the local image file
+    image = Image.open(image_file_path).convert("RGB")
 
-    # The output is a list of dictionaries, we extract the text
-    scanned_text = recognized_text[0]["generated_text"]
-
-    # Return the result as a JSON string
+    # Process the image and move it to the correct device (GPU or CPU)
+    pixel_values = processor(images=image, return_tensors="pt").pixel_values.to(device)
+    
+    # Generate the text from the image
+    generated_ids = model.generate(pixel_values)
+    
+    # Decode the generated text and clean it up
+    scanned_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    
+    # Print the result as a JSON string to be read by the backend server
     print(json.dumps({"status": "success", "text": scanned_text}))
 
 except Exception as e:
-    # Handle any errors and return them in a JSON format
-    print(json.dumps({"status": "error", "message": str(e)}))
+    # If any error occurs, print a detailed error message in JSON format
+    print(json.dumps({
+        "status": "error", 
+        "message": "OCR failed.", 
+        "details": str(e)
+    }))
     sys.stderr.write(str(e))
     sys.exit(1)
