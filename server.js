@@ -13,7 +13,6 @@ const upload = multer({ dest: 'uploads/' });
 
 app.use(express.json());
 
-// Serve static files from the root and saved_notes directory
 app.use(express.static(__dirname));
 app.use('/saved_notes', express.static(path.join(__dirname, 'saved_notes')));
 
@@ -207,7 +206,6 @@ app.post('/tts', (req, res) => {
         try {
             const result = JSON.parse(dataString.trim());
             if (result.status === 'success' && result.filePath) {
-                // Construct the file URL to be returned to the frontend
                 const fileUrl = `${req.protocol}://${req.get('host')}/${path.basename(result.filePath)}`;
                 res.status(200).send({ status: 'success', audioUrl: fileUrl });
             } else {
@@ -245,8 +243,20 @@ app.post('/saveNote', async (req, res) => {
 
 app.get('/notes/:userId', async (req, res) => {
     const { userId } = req.params;
+    const { type } = req.query; // Get the type from query parameters
+
     try {
-        const [rows] = await pool.execute('SELECT id, type, content, file_path AS filePath, created_at AS createdAt FROM documents WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC', [userId]);
+        let query = 'SELECT id, type, content, file_path AS filePath, created_at AS createdAt FROM documents WHERE user_id = ? AND deleted_at IS NULL';
+        const params = [userId];
+
+        if (type) {
+            query += ' AND type = ?';
+            params.push(type);
+        }
+
+        query += ' ORDER BY created_at DESC';
+
+        const [rows] = await pool.execute(query, params);
         res.status(200).send({ status: 'success', notes: rows });
     } catch (error) {
         console.error('❌ Failed to retrieve notes:', error);
