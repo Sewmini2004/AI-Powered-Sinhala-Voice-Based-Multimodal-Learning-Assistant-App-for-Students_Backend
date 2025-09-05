@@ -12,7 +12,6 @@ const port = 3000;
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.json());
-
 app.use(express.static(__dirname));
 app.use('/saved_notes', express.static(path.join(__dirname, 'saved_notes')));
 
@@ -243,15 +242,20 @@ app.post('/saveNote', async (req, res) => {
 
 app.get('/notes/:userId', async (req, res) => {
     const { userId } = req.params;
-    const { type } = req.query; // Get the type from query parameters
+    const { type, search } = req.query; // Get both type and search from query parameters
 
     try {
         let query = 'SELECT id, type, content, file_path AS filePath, created_at AS createdAt FROM documents WHERE user_id = ? AND deleted_at IS NULL';
         const params = [userId];
 
-        if (type) {
+        if (type && type !== 'all') { // Check for 'all' to not filter
             query += ' AND type = ?';
             params.push(type);
+        }
+
+        if (search) {
+            query += ' AND content LIKE ?';
+            params.push(`%${search}%`);
         }
 
         query += ' ORDER BY created_at DESC';
